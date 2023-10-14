@@ -1,9 +1,12 @@
 #!/usr/bin/env python
 from tkinter import *
 from tkinter import ttk
-import threading
+import threading,queue
 
-def task(location):
+df = None
+gf = None
+
+def task(result_queue):
     global ctypes,math,pd,mdates,FigureCanvasTkAgg,Figure,requests,io,webbrowser,Image,ImageTk,BytesIO
     global round_up,load_image,gotolocationselect,gotodata,gotograph
     global df, gf, root, pb
@@ -101,7 +104,13 @@ def task(location):
 
     pb.stop()
     pb.destroy()
-    root.after(200, gotolocationselect)
+    root.after(200, pb.stop)
+    def stop_progress_bar():
+        pb.stop()
+        pb.destroy()
+
+    root.after(200, stop_progress_bar)
+    result_queue.put("Task completed")
 
 root = Tk()
 root.title("Example")
@@ -111,13 +120,22 @@ pb = ttk.Progressbar(root, orient='horizontal', mode='indeterminate', length=280
 pb.pack()
 pb.start()
 
-df = None
-gf = None
+
 excluded = ["OWID_ENG", "OWID_EUN", "OWID_HIC", "HKG", "OWID_LIC", "OWID_LMC", "OWID_NIR", "OWID_SCT", "TWN", "TKM", "OWID_UMC"]
 location = StringVar()
-loading_thread = threading.Thread(target=task, args=(location))
+result_queue = queue.Queue()
+loading_thread = threading.Thread(target=task, args=(result_queue,))
 loading_thread.start()
+loading_thread.join()
 
+def check_queue():
+    try:
+        message = result_queue.get_nowait()
+        gotolocationselect()
+    except queue.Empty:
+        root.after(100, check_queue)
+
+root.after(100, check_queue)
 root.mainloop()
 
 master = Tk()
@@ -126,9 +144,9 @@ master.geometry("1500x600")
 locationselect_frame = Frame(master)
 datadisplay_frame = Frame(master)
 graph_frame = Frame(master)
-backarrow_image = load_image("https://lh3.googleusercontent.com/drive-viewer/AITFw-zF4hMnp311E8TDp9wpc9v12Aj---a545znq0gboPCuMs-NCUlZl4dmXfWgaCF1l2Sv_DPhiykiA0EsZQHiyT7rnFYEDA=s2560",(32,32))
-graph_image = load_image("https://lh3.googleusercontent.com/drive-viewer/AITFw-zuK9Ct2lq-gO2mQVSOXFNa1wLyiCFHTA-_RJMHev9miQVJSQVIoeiZsChx5BHBm60WiIEkXblxjv0813NOrcHxlvOwPw=s2560",(32,32))
-location_image = load_image("https://lh3.googleusercontent.com/drive-viewer/AITFw-xN-7ObeLP6KBLMj7T7FMFlX-d_izXIR908OdUbwkVz-u9L0gNd6ukm7zuvh3toLeAucbUv6V58wK4jbRZR2hvy5sXmMA=s2560",(32,32))
+#backarrow_image = load_image("https://lh3.googleusercontent.com/drive-viewer/AITFw-zF4hMnp311E8TDp9wpc9v12Aj---a545znq0gboPCuMs-NCUlZl4dmXfWgaCF1l2Sv_DPhiykiA0EsZQHiyT7rnFYEDA=s2560",(32,32))
+#graph_image = load_image("https://lh3.googleusercontent.com/drive-viewer/AITFw-zuK9Ct2lq-gO2mQVSOXFNa1wLyiCFHTA-_RJMHev9miQVJSQVIoeiZsChx5BHBm60WiIEkXblxjv0813NOrcHxlvOwPw=s2560",(32,32))
+#location_image = load_image("https://lh3.googleusercontent.com/drive-viewer/AITFw-xN-7ObeLP6KBLMj7T7FMFlX-d_izXIR908OdUbwkVz-u9L0gNd6ukm7zuvh3toLeAucbUv6V58wK4jbRZR2hvy5sXmMA=s2560",(32,32))
 
 
 #Location Select Frame
@@ -147,8 +165,10 @@ datalocation = location.get()
 #Data Display Frame
 ddftoolbar = Frame(datadisplay_frame)
 ddftoolbar.pack(fill=X)
-Button(ddftoolbar, image=backarrow_image, text="Back", compound="left", font=("Comfortaa", 12, "bold"), command=gotolocationselect, padx=10).pack(side=LEFT, padx=10, pady=0)
-Button(ddftoolbar, image=graph_image, text="View Data Graph", compound="left", font=("Comfortaa", 12, "bold"), command=gotograph,padx=10).pack(side=LEFT, padx=10, pady=0)
+#, image=backarrow_image
+Button(ddftoolbar, text="Back", compound="left", font=("Comfortaa", 12, "bold"), command=gotolocationselect, padx=10).pack(side=LEFT, padx=10, pady=0)
+#, image=graph_image
+Button(ddftoolbar, text="View Data Graph", compound="left", font=("Comfortaa", 12, "bold"), command=gotograph,padx=10).pack(side=LEFT, padx=10, pady=0)
 
 row = df[df["location"] == datalocation].index[0]
 dataloctitle = Label(datadisplay_frame,text=f"COVID Data for {datalocation}",font=("Comfortaa",50,"bold"))
@@ -168,8 +188,10 @@ scrollbar.config(command=info.yview)
 #Graph Display Frame
 gftoolbar = Frame(graph_frame)
 gftoolbar.pack(fill=X)
-Button(gftoolbar, image=backarrow_image, text="Back", compound="left", font=("Comfortaa", 12, "bold"), command=gotodata, padx=10).pack(side=LEFT, padx=10, pady=0)
-Button(gftoolbar, image=location_image, text="Go to Location Select", compound="left", font=("Comfortaa", 12, "bold"), command=gotolocationselect,padx=10).pack(side=LEFT, padx=10, pady=0)
+#, image=backarrow_image
+Button(gftoolbar, text="Back", compound="left", font=("Comfortaa", 12, "bold"), command=gotodata, padx=10).pack(side=LEFT, padx=10, pady=0)
+#, image=location_image
+Button(gftoolbar, text="Go to Location Select", compound="left", font=("Comfortaa", 12, "bold"), command=gotolocationselect,padx=10).pack(side=LEFT, padx=10, pady=0)
 
 graphdata = gf[gf["location"] == datalocation]
 dates = pd.to_datetime(graphdata["date"])
