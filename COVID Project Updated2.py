@@ -1,142 +1,102 @@
 #!/usr/bin/env python
 from tkinter import *
 from tkinter import ttk
-import threading,queue
+from tkinter import messagebox
 
-df = None
-gf = None
+messagebox.showinfo(title="Loading...", message="The COVID-19 analysis program is running, please give it time to load...")
 
-def task(result_queue):
-    global ctypes,math,pd,mdates,FigureCanvasTkAgg,Figure,requests,io,webbrowser,Image,ImageTk,BytesIO
-    global round_up,load_image,gotolocationselect,gotodata,gotograph
-    global df, gf, root, pb
-    import ctypes, math, requests, io, webbrowser
-    import pandas as pd
-    import matplotlib.dates as mdates
-    from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-    from matplotlib.figure import Figure
-    from PIL import Image, ImageTk
-    from io import BytesIO
-
-    dfurl = "https://raw.githubusercontent.com/owid/covid-19-data/master/public/data/latest/owid-covid-latest.csv"
-    dfdownload = requests.get(dfurl).content
-    df = pd.read_csv(io.StringIO(dfdownload.decode('utf-8')))
-    df = df[~df["iso_code"].isin(excluded)]
-
-    gfurl = "https://raw.githubusercontent.com/owid/covid-19-data/master/public/data/owid-covid-data.csv"
-    gfdownload = requests.get(gfurl).content
-    gf = pd.read_csv(io.StringIO(gfdownload.decode('utf-8')))
-    gf = gf[~gf["iso_code"].isin(excluded)]
-
-    def round_up(n, decimals=0):
-        multiplier = 10**decimals
-        return math.ceil(n * multiplier) / multiplier
-
-    def load_image(url, size):
-        response = requests.get(url)
-        image_data = BytesIO(response.content)
-        img = Image.open(image_data)
-        img = img.resize(size, Image.ANTIALIAS)
-        return ImageTk.PhotoImage(img)
-
-    def gotolocationselect():
-        global row, datalocation, location
-        datalocation = location.get()
-        row = df[df["location"] == datalocation].index[0]
-        datadisplay_frame.pack_forget()
-        graph_frame.pack_forget()
-        locationselect_frame.pack(fill=BOTH, expand=True)
-
-    def gotodata():
-        global row, datalocation, location, dataloctitle,info
-        datalocation = location.get()
-        row = df[df["location"] == datalocation].index[0]
-        dataloctitle.config(text=f"COVID Data for {datalocation}")
-        info.delete(0, END)
-        for column in df:
-            if "smokers" in column or "age" in column:
-                del df[column]
-            else:
-                temp = str(column).replace("_"," ").title()
-                temp = temp.replace("Gdp","GDP")
-                temp = temp.replace("Icu","ICU")
-                temp = temp.replace("Hosp","Hospital")
-                temp = temp.replace("Cardiovasc","Cardiovascular")
-                temp = temp.replace("Capita","Capital")
-                temp = temp.replace("Iso","ISO")
-                if str(df[column][row]) != "nan":
-                    info.insert(END, f"{temp}: {df[column][row]}")
-        locationselect_frame.pack_forget()
-        graph_frame.pack_forget()
-        datadisplay_frame.pack(fill=BOTH, expand=True)
-
-    def gotograph():
-        global graphdata, dates, total_cases, subplt
-        locationselect_frame.pack_forget()
-        datadisplay_frame.pack_forget()
-        subplt.clear()
-
-        graphdata = gf[gf["location"] == datalocation]
-        dates = pd.to_datetime(graphdata["date"])
-        total_cases = graphdata["total_cases"]
-        max_total_cases = total_cases.max()
-
-        subplt.bar(dates, total_cases, width=5, color='b', alpha=0.7)
-        subplt.set_title(f"Total COVID-19 Cases in {datalocation}")
-        subplt.set_xlabel("Date")
-        subplt.set_ylabel("Total Cases")
-        subplt.xaxis.set_major_formatter(mdates.DateFormatter("%b %d, %Y"))
-        subplt.xaxis.set_major_locator(mdates.DayLocator(interval=50))
-        if max_total_cases/1e6 <= 5:
-            y_ticks = [0, round_up(max_total_cases,-3)*.25, round_up(max_total_cases,-3)*.5, round_up(max_total_cases,-3)*.75, round_up(max_total_cases,-3)]
-            y_tick_labels = ["0M", f"{int(round_up(max_total_cases,-3)*.25/1e3)}K", f"{int(round_up(max_total_cases,-3)*.5/1e3)}K", f"{int(round_up(max_total_cases,-3)*.75/1e3)}K", f"{int(round_up(max_total_cases,-3)/1e3)}K"]
-        else:
-            y_ticks = [0, round_up(max_total_cases,-6)*.25, round_up(max_total_cases,-6)*.5, round_up(max_total_cases,-6)*.75, round_up(max_total_cases,-6)]
-            y_tick_labels = ["0M", f"{int(round_up(max_total_cases,-6)*.25/1e6)}M", f"{int(round_up(max_total_cases,-6)*.5/1e6)}M", f"{int(round_up(max_total_cases,-6)*.75/1e6)}M", f"{int(round_up(max_total_cases,-6)/1e6)}M"]
-        subplt.set_yticks(y_ticks)
-        subplt.set_yticklabels(y_tick_labels)
-        subplt.tick_params(axis='x', rotation=45)
-
-        subplt.grid(False)
-        fig.tight_layout()
-        canvas.draw()
-        graph_frame.pack(fill=BOTH, expand=True)
-
-    pb.stop()
-    pb.destroy()
-    root.after(200, pb.stop)
-    def stop_progress_bar():
-        pb.stop()
-        pb.destroy()
-
-    root.after(200, stop_progress_bar)
-    result_queue.put("Task completed")
-
-root = Tk()
-root.title("Example")
-
-Label(root, text="Waiting for task to finish.").pack()
-pb = ttk.Progressbar(root, orient='horizontal', mode='indeterminate', length=280)
-pb.pack()
-pb.start()
-
+import ctypes, math, requests, io, webbrowser
+import pandas as pd
+import matplotlib.dates as mdates
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.figure import Figure
+from PIL import Image, ImageTk
+from io import BytesIO
 
 excluded = ["OWID_ENG", "OWID_EUN", "OWID_HIC", "HKG", "OWID_LIC", "OWID_LMC", "OWID_NIR", "OWID_SCT", "TWN", "TKM", "OWID_UMC"]
-location = StringVar()
-result_queue = queue.Queue()
-loading_thread = threading.Thread(target=task, args=(result_queue,))
-loading_thread.start()
-loading_thread.join()
+dfurl = "https://raw.githubusercontent.com/owid/covid-19-data/master/public/data/latest/owid-covid-latest.csv"
+dfdownload = requests.get(dfurl).content
+df = pd.read_csv(io.StringIO(dfdownload.decode('utf-8')))
+df = df[~df["iso_code"].isin(excluded)]
 
-def check_queue():
-    try:
-        message = result_queue.get_nowait()
-        gotolocationselect()
-    except queue.Empty:
-        root.after(100, check_queue)
+gfurl = "https://raw.githubusercontent.com/owid/covid-19-data/master/public/data/owid-covid-data.csv"
+gfdownload = requests.get(gfurl).content
+gf = pd.read_csv(io.StringIO(gfdownload.decode('utf-8')))
+gf = gf[~gf["iso_code"].isin(excluded)]
 
-root.after(100, check_queue)
-root.mainloop()
+def round_up(n, decimals=0):
+    multiplier = 10**decimals
+    return math.ceil(n * multiplier) / multiplier
+
+def load_image(url, size):
+    response = requests.get(url)
+    image_data = BytesIO(response.content)
+    img = Image.open(image_data)
+    img = img.resize(size, Image.ANTIALIAS)
+    return ImageTk.PhotoImage(img)
+
+def gotolocationselect():
+    global row, datalocation, location
+    datalocation = location.get()
+    row = df[df["location"] == datalocation].index[0]
+    datadisplay_frame.pack_forget()
+    graph_frame.pack_forget()
+    locationselect_frame.pack(fill=BOTH, expand=True)
+
+def gotodata():
+    global row, datalocation, location, dataloctitle,info
+    datalocation = location.get()
+    row = df[df["location"] == datalocation].index[0]
+    dataloctitle.config(text=f"COVID Data for {datalocation}")
+    info.delete(0, END)
+    for column in df:
+        if "smokers" in column or "age" in column:
+            del df[column]
+        else:
+            temp = str(column).replace("_"," ").title()
+            temp = temp.replace("Gdp","GDP")
+            temp = temp.replace("Icu","ICU")
+            temp = temp.replace("Hosp","Hospital")
+            temp = temp.replace("Cardiovasc","Cardiovascular")
+            temp = temp.replace("Capita","Capital")
+            temp = temp.replace("Iso","ISO")
+            if str(df[column][row]) != "nan":
+                info.insert(END, f"{temp}: {df[column][row]}")
+    locationselect_frame.pack_forget()
+    graph_frame.pack_forget()
+    datadisplay_frame.pack(fill=BOTH, expand=True)
+
+def gotograph():
+    global graphdata, dates, total_cases, subplt
+    locationselect_frame.pack_forget()
+    datadisplay_frame.pack_forget()
+    subplt.clear()
+
+    graphdata = gf[gf["location"] == datalocation]
+    dates = pd.to_datetime(graphdata["date"])
+    total_cases = graphdata["total_cases"]
+    max_total_cases = total_cases.max()
+
+    subplt.bar(dates, total_cases, width=5, color='b', alpha=0.7)
+    subplt.set_title(f"Total COVID-19 Cases in {datalocation}")
+    subplt.set_xlabel("Date")
+    subplt.set_ylabel("Total Cases")
+    subplt.xaxis.set_major_formatter(mdates.DateFormatter("%b %d, %Y"))
+    subplt.xaxis.set_major_locator(mdates.DayLocator(interval=50))
+    if max_total_cases/1e6 <= 5:
+        y_ticks = [0, round_up(max_total_cases,-3)*.25, round_up(max_total_cases,-3)*.5, round_up(max_total_cases,-3)*.75, round_up(max_total_cases,-3)]
+        y_tick_labels = ["0M", f"{int(round_up(max_total_cases,-3)*.25/1e3)}K", f"{int(round_up(max_total_cases,-3)*.5/1e3)}K", f"{int(round_up(max_total_cases,-3)*.75/1e3)}K", f"{int(round_up(max_total_cases,-3)/1e3)}K"]
+    else:
+        y_ticks = [0, round_up(max_total_cases,-6)*.25, round_up(max_total_cases,-6)*.5, round_up(max_total_cases,-6)*.75, round_up(max_total_cases,-6)]
+        y_tick_labels = ["0M", f"{int(round_up(max_total_cases,-6)*.25/1e6)}M", f"{int(round_up(max_total_cases,-6)*.5/1e6)}M", f"{int(round_up(max_total_cases,-6)*.75/1e6)}M", f"{int(round_up(max_total_cases,-6)/1e6)}M"]
+    subplt.set_yticks(y_ticks)
+    subplt.set_yticklabels(y_tick_labels)
+    subplt.tick_params(axis='x', rotation=45)
+
+    subplt.grid(False)
+    fig.tight_layout()
+    canvas.draw()
+    graph_frame.pack(fill=BOTH, expand=True)
 
 master = Tk()
 master.title("COVID-19 Data Analysis")
